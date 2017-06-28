@@ -156,33 +156,3 @@ modKnn <- train(
   trControl = ctrl
 )
 
-# helpful commands
-data[1:5,((ncol(data)-6):ncol(data))] #select last 6 cols
-
-library(dplyr)
-dplyr::select(data, WAP008:WAP012) %>%
-  dplyr::filter(WAP008==100)
-
-# playground
-foo <- stack(data[,1:2])
-foo <- cbind(foo, row.names(foo))
-colnames(foo)[ncol(foo)] <- "id"
-foo <- foo[,c(ncol(foo), 1:(ncol(foo)-1))]
-
-dplyr::transmute(foo, values = values + 5)
-dplyr::select(data, starts_with("WAP"))
-
-fooNulls <- dplyr::filter(foo, values==100) %>%
-  dplyr::transmute(id, values = 0, ind)
-
-fooVals <- dplyr::filter(foo, values!=100) %>%
-  dplyr::transmute(id, values = values + 5, ind)
-
-fooJoined <- rbind(fooNulls, fooVals)
-row.names(fooJoined) <- fooJoined[,1]
-
-fooJoined[,1] <- as.numeric(fooJoined[,1])
-fooJoined <- dplyr::arrange(fooJoined, id) %>%
-  dplyr::select(-id)
-
-unstack(fooJoined)
