@@ -59,8 +59,57 @@ data <- data[,-c(523:526)]
 # stack all WAP factors in one column, this allows us to
 # transform values without looping over column indexes,
 # something not really possible in R
+wapStack <- stack(
+  dplyr::select(
+    data, dplyr::starts_with("WAP")
+  )
+)
+
+# move the row.names df index into the dataframe itself
+# this is needed because the dplyr transformations will 
+# lose the original df index which is needed to reconstruct
+# the wapStack when we rejoin the dplyr data 'tibbles'
+wapStack <- cbind(wapStack, row.names(wapStack))
+colnames(wapStack)[ncol(wapStack)] <- "id"
+wapStack <- wapStack[,c(ncol(wapStack), 1:(ncol(wapStack)-1))]
+
+# change values of 100 RSSI to zero (no signal)
+wapNulls <- dplyr::filter(wapStack, values==100) %>%
+  dplyr::transmute(id, values = 0, ind)
+
+# convert remaining RSSI values to linear scale between 0-1
+wapVals <- dplyr::filter(wapStack, values!=100) %>%
+  dplyr::transmute(id, values = 10^(values/10)/1000*10^12, ind)
+
+# join the 'no signal' and 'signal' frames by rows
+wapJoined <- rbind(wapNulls, wapVals)
+
+# overwrite the df idx with the 'id' field
+row.names(wapJoined) <- wapJoined[,1]
+
+# sort the joined df asc by the id field
+# note that id must be converted from factor to num
+wapJoined[,1] <- as.numeric(wapJoined[,1])
+wapJoined <- dplyr::arrange(wapJoined, id) %>%
+  dplyr::select(-id) # drop the id column
+
+# finally, unstack the joined set to get our factor 
+# matrix back with no '100' values and linear RSSIs
+wapClean <- unstack(wapJoined)
 
 
+# merge the wapClean df back into the original data df
+data <- cbind(
+  wapClean, 
+  dplyr::select(data, -(starts_with("WAP")))
+)
+
+# clean up intermediary tables
+wapStack <- NULL
+wapNulls <- NULL
+wapVals <- NULL
+wapJoined <- NULL
+wapClean <- NULL
 
 # reduce feature space - find near zero variance columns in 
 # the WAP feature space (1:521) and drop them. Tuned 
@@ -78,15 +127,16 @@ data <- data[,-c(
 
 # create X and Y (factors and target) matricies
 X <- dplyr::select(data, (starts_with("WAP")))
-# scaling needed? not sure
-# X <- scale(X, center=TRUE)
-# FLOOR.BLDG.SPACEID, Y target
-Y <- dplyr::select(data, "FBS")
-Y <- Y[,1] # caret accepts only vector, not data.frame
+# scaling needed? need to investigate if train() does
+# a good job. If not, use X <- scale(X, center=TRUE)
 
-# visualize covariance matrix
-# note that you can't draw cor to Y because Y is a factor
-corrplot(cor(X)) # this could be cleaner
+# create class label Y matrix, FLOOR.BLDG.SPACEID
+Y_FBS <- dplyr::select(data, "FBS")
+Y_FBS <- Y_FBS[,1] # caret accepts only vector, not data.frame
+
+# create class label Y matrix, FLOOR.BLDG (no SPACEID)
+Y_FB <- dplyr::select(data, "FB")
+Y_FB <- Y_FB[,1] # caret accepts only vector, not data.frame
 
 # note that there are only 76 labels for 100 instances (rows)
 # this is 1.3 samples per class (not that great)
@@ -95,13 +145,13 @@ corrplot(cor(X)) # this could be cleaner
 set.seed(1337)
 ctrl <- trainControl(
   method="cv",
-  repeats=5
+  repeats=1
 )
 
-# train dat model (need e1071 installed)
+# train knn model
 modKnn <- train(
   X,
-  Y,
+  Y_FB, #note that FBS or FBSR will probably not work here
   method = "knn",
   # method = 'svmLinear3'
   preProcess = c("center", "scale"),
@@ -109,33 +159,12 @@ modKnn <- train(
   trControl = ctrl
 )
 
-# helpful commands
-data[1:5,((ncol(data)-6):ncol(data))] #select last 6 cols
-
-library(dplyr)
-dplyr::select(data, WAP008:WAP012) %>%
-  dplyr::filter(WAP008==100)
-
-# playground
-foo <- stack(data[,1:2])
-foo <- cbind(foo, row.names(foo))
-colnames(foo)[ncol(foo)] <- "id"
-foo <- foo[,c(ncol(foo), 1:(ncol(foo)-1))]
-
-dplyr::transmute(foo, values = values + 5)
-dplyr::select(data, starts_with("WAP"))
-
-fooNulls <- dplyr::filter(foo, values==100) %>%
-  dplyr::transmute(id, values = 0, ind)
-
-fooVals <- dplyr::filter(foo, values!=100) %>%
-  dplyr::transmute(id, values = values + 5, ind)
-
-fooJoined <- rbind(fooNulls, fooVals)
-row.names(fooJoined) <- fooJoined[,1]
-
-fooJoined[,1] <- as.numeric(fooJoined[,1])
-fooJoined <- dplyr::arrange(fooJoined, id) %>%
-  dplyr::select(-id)
-
-unstack(fooJoined)
+# train svm model
+modSvm <- train(
+  X,
+  Y_FB, #note that FBS or FBSR will probably not work here
+  method = 'svmLinear3',
+  preProcess = c("center", "scale"),
+  tuneLength = 10,
+  trControl = ctrl
+)
