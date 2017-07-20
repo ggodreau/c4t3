@@ -126,16 +126,16 @@ data <- data[,-c(
 )]
 
 # create X and Y (factors and target) matricies
-X <- dplyr::select(data, (starts_with("WAP")))
+X <- dplyr::select(data, starts_with("WAP"))
 # scaling needed? need to investigate if train() does
 # a good job. If not, use X <- scale(X, center=TRUE)
 
 # create class label Y matrix, FLOOR.BLDG.SPACEID
-Y_FBS <- dplyr::select(data, (starts_with("FBS")))
+Y_FBS <- dplyr::select(data, starts_with("FBS"))
 Y_FBS <- Y_FBS[,1] # caret accepts only vector, not data.frame
 
 # create class label Y matrix, FLOOR.BLDG (no SPACEID)
-Y_FB <- dplyr::select(data, "FB")
+Y_FB <- dplyr::select(data, starts_with("FB"))
 Y_FB <- Y_FB[,1] # caret accepts only vector, not data.frame
 
 # create trainControl object
