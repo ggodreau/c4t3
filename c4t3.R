@@ -131,7 +131,7 @@ X <- dplyr::select(data, (starts_with("WAP")))
 # a good job. If not, use X <- scale(X, center=TRUE)
 
 # create class label Y matrix, FLOOR.BLDG.SPACEID
-Y_FBS <- dplyr::select(data, "FBS")
+Y_FBS <- dplyr::select(data, (starts_with("FBS")))
 Y_FBS <- Y_FBS[,1] # caret accepts only vector, not data.frame
 
 # create class label Y matrix, FLOOR.BLDG (no SPACEID)
