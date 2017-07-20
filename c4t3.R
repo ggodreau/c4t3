@@ -138,9 +138,6 @@ Y_FBS <- Y_FBS[,1] # caret accepts only vector, not data.frame
 Y_FB <- dplyr::select(data, "FB")
 Y_FB <- Y_FB[,1] # caret accepts only vector, not data.frame
 
-# note that there are only 76 labels for 100 instances (rows)
-# this is 1.3 samples per class (not that great)
-
 # create trainControl object
 set.seed(1337)
 ctrl <- trainControl(
@@ -153,7 +150,6 @@ modKnn <- train(
   X,
   Y_FB, #note that FBS or FBSR will probably not work here
   method = "knn",
-  # method = 'svmLinear3'
   preProcess = c("center", "scale"),
   tuneLength = 10,
   trControl = ctrl
