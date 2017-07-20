@@ -1,8 +1,6 @@
 # imports
-#library(tidyr)
 library(dplyr)
 library(caret)
-library(corrplot)
 
 data <- read.table(
   './trainingData.csv',
@@ -131,11 +129,11 @@ X <- dplyr::select(data, starts_with("WAP"))
 # a good job. If not, use X <- scale(X, center=TRUE)
 
 # create class label Y matrix, FLOOR.BLDG.SPACEID
-Y_FBS <- dplyr::select(data, starts_with("FBS"))
+Y_FBS <- dplyr::select(data, ends_with("FBS"))
 Y_FBS <- Y_FBS[,1] # caret accepts only vector, not data.frame
 
 # create class label Y matrix, FLOOR.BLDG (no SPACEID)
-Y_FB <- dplyr::select(data, starts_with("FB"))
+Y_FB <- dplyr::select(data, ends_with("FB"))
 Y_FB <- Y_FB[,1] # caret accepts only vector, not data.frame
 
 # create trainControl object
@@ -155,7 +153,9 @@ modKnn <- train(
   trControl = ctrl
 )
 
-# train svm model
+modKnn
+
+## train svm model
 modSvm <- train(
   X,
   Y_FB, #note that FBS or FBSR will probably not work here
@@ -164,3 +164,5 @@ modSvm <- train(
   tuneLength = 10,
   trControl = ctrl
 )
+
+modSvm
